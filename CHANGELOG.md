@@ -2,6 +2,12 @@
 
 All notable changes to this fork are documented here.
 
+## 1.4.1.1
+
+### Fixed
+
+- Restored the vanilla map markers when the plugin is unloaded while the map is open.
+
 ## 1.4.1.0
 
 ### Added
