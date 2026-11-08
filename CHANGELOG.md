@@ -14,6 +14,16 @@ All notable changes to this fork are documented here.
 - New `/huntyalert` command to toggle the alert window. Its visibility is persisted across
   restarts.
 
+### Changed
+
+- The fork is now published through its own Dalamud custom plugin repository (`repo.json`).
+  Because the official repository already ships a plugin named `Hunty`, Dalamud would ignore
+  a third-party entry with the same internal name, so this fork uses the internal name
+  **`HuntyFork`** and is shown as **Hunty (fork)**. The assembly, manifest and resource
+  assemblies were renamed accordingly; the namespace, commands and configuration stay the same.
+- Added custom repository installation instructions to the README, including a note about
+  disabling the official `Hunty` to avoid `/hunty*` command conflicts.
+
 ## 1.3.8.0
 
 ### Fixed

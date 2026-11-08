@@ -29,12 +29,52 @@ Let's go hunt together, finally finishing that old log of yours~
 ## Localized languages (de, fr, jp)  
 ![Japanese](Hunty/images/loc.png)
 
-## Plogon
+## Installation (custom plugin repository)
 
-A Dalamud plugin for Final Fantasy XIV.
+This fork is published through its own Dalamud plugin repository, so it can update automatically.
+It is installed as **Hunty (fork)** with the internal name `HuntyFork`.
 
-This repository is for development! If you just want to use this addon, you'll need to install the [FFXIV Quick Launcher](https://github.com/goatcorp/FFXIVQuickLauncher) and read the
-[FAQ](https://goatcorp.github.io/faq/dalamud_troubleshooting.html#q-how-do-i-installenable-plugins).
+1. Install the [FFXIV Quick Launcher](https://github.com/goatcorp/FFXIVQuickLauncher) and log into the game with Dalamud enabled.
+2. Run `/xlsettings` and open the **Experimental** tab.
+3. Under **Custom Plugin Repositories**, add this URL and enable it:
+
+   ```
+   https://raw.githubusercontent.com/kngbong/Hunty/master/repo.json
+   ```
+
+4. Click **Save** (the `+` button) and close the window.
+5. Run `/xlplugins`, search for **Hunty (fork)** and click **Install**.
+
+> **Important:** if you already have the official **Hunty** installed, disable or uninstall it first.
+> Both plugins register the same `/hunty`, `/huntyxl`, `/huntycompanion` and `/huntyalert`
+> commands, so keeping them enabled together causes command conflicts.
+
+### Commands
+
+| Command | Action |
+| --- | --- |
+| `/hunty` | Main window |
+| `/huntyxl` | XL guide book |
+| `/huntycompanion` | Guide book grouped by area |
+| `/huntyalert` | Toggle the hunting log alert window |
+
+The alert window can also be shown/hidden and configured (which classes to watch) from the
+plugin configuration window, **Alerts** tab.
+
+### Building from source
+
+```powershell
+dotnet build .\Hunty.sln --configuration Release
+```
+
+The packaged release is written to `Hunty\bin\Release\HuntyFork\latest.zip`.
+
+## Development
+
+A Dalamud plugin for Final Fantasy XIV. This repository is for development; end users should
+install it through the custom repository described above. See the
+[FAQ](https://goatcorp.github.io/faq/dalamud_troubleshooting.html#q-how-do-i-installenable-plugins)
+for general Dalamud plugin help.
   
   
 ## Thanks
