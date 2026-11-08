@@ -6,7 +6,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using Dalamud.Game;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Hunty.Windows;
 using Dalamud.Game.Command;
@@ -42,6 +41,7 @@ public sealed class Plugin : IDalamudPlugin
     private const string CommandName = "/hunty";
     private const string CommandXL = "/huntyxl";
     private const string CommandCompanion = "/huntycompanion";
+    private const string CommandAlert = "/huntyalert";
 
     public Configuration Configuration { get; init; }
 
@@ -50,12 +50,13 @@ public sealed class Plugin : IDalamudPlugin
     private MainWindow MainWindow;
     private XLWindow XLWindow;
     private CompanionWindow CompanionWindow;
+    private AlertWindow AlertWindow;
 
-    public readonly HuntingData HuntingData = null!;
+    public readonly HuntingData HuntingData;
     private uint CurrentJobId;
     private ClassJob CurrentJobParent;
 
-    public static TeleportConsumer TeleportConsumer = null!;
+    public TeleportConsumer TeleportConsumer = null!;
 
     public uint CurrentJob = 1;
     public string CurrentJobName = "";
@@ -72,14 +73,20 @@ public sealed class Plugin : IDalamudPlugin
 
         TeleportConsumer = new TeleportConsumer();
 
+        HuntingData = new HuntingData();
+
         ConfigWindow = new ConfigWindow(this);
         MainWindow = new MainWindow(this);
         XLWindow = new XLWindow(this);
         CompanionWindow = new CompanionWindow(this);
+        AlertWindow = new AlertWindow(this);
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
         WindowSystem.AddWindow(XLWindow);
         WindowSystem.AddWindow(CompanionWindow);
+        WindowSystem.AddWindow(AlertWindow);
+
+        AlertWindow.IsOpen = Configuration.ShowAlertWindow;
 
         PluginInterface.UiBuilder.Draw += DrawUi;
         PluginInterface.UiBuilder.OpenMainUi += OpenMainWindow;
@@ -101,13 +108,29 @@ public sealed class Plugin : IDalamudPlugin
             HelpMessage = Language.HelpMessageCompanion
         });
 
+        CommandManager.AddHandler(CommandAlert, new CommandInfo(OnAlertCommand)
+        {
+            HelpMessage = Language.HelpMessageAlert
+        });
+
         try
         {
             Log.Debug("Loading Monsters.");
 
             var path = Path.Combine(PluginInterface.AssemblyLocation.Directory!.FullName, "monsters.json");
-            var jsonString = File.ReadAllText(path);
-            HuntingData = JsonConvert.DeserializeObject<HuntingData>(jsonString)!;
+            if (!File.Exists(path))
+            {
+                Log.Error("monsters.json was not found at {Path}.", path);
+            }
+            else
+            {
+                var jsonString = File.ReadAllText(path);
+                var data = JsonConvert.DeserializeObject<HuntingData>(jsonString);
+                if (data == null)
+                    Log.Error("monsters.json could not be deserialized.");
+                else
+                    HuntingData = data;
+            }
         }
         catch (Exception ex)
         {
@@ -116,8 +139,6 @@ public sealed class Plugin : IDalamudPlugin
 
         Framework.Update += CheckJobChange;
         ClientState.Login += OnLogin;
-
-        GetAllMonsterLoc();
     }
 
     public void Dispose()
@@ -133,15 +154,25 @@ public sealed class Plugin : IDalamudPlugin
         MainWindow.Dispose();
         XLWindow.Dispose();
         CompanionWindow.Dispose();
+        AlertWindow.Dispose();
 
         CommandManager.RemoveHandler(CommandName);
         CommandManager.RemoveHandler(CommandXL);
         CommandManager.RemoveHandler(CommandCompanion);
+        CommandManager.RemoveHandler(CommandAlert);
     }
 
     private void LanguageChanged(string langCode)
     {
-        Language.Culture = new CultureInfo(langCode);
+        try
+        {
+            Language.Culture = new CultureInfo(langCode);
+        }
+        catch (CultureNotFoundException ex)
+        {
+            Log.Warning(ex, "Unsupported UI language {Language}, falling back to the neutral language.", langCode);
+            Language.Culture = CultureInfo.InvariantCulture;
+        }
     }
 
     private void OnLogin()
@@ -186,45 +217,101 @@ public sealed class Plugin : IDalamudPlugin
     private void OnCommand(string command, string args) => MainWindow.Toggle();
     private void OnXLCommand(string command, string args) => XLWindow.Toggle();
     private void OnCompanionCommand(string command, string args) => CompanionWindow.Toggle();
-    private void DrawUi() => WindowSystem.Draw();
+    private void OnAlertCommand(string command, string args) => AlertWindow.Toggle();
+    private void DrawUi()
+    {
+        WindowSystem.Draw();
+
+        // Persist the alert window state so it survives restarts and close-button clicks.
+        if (Configuration.ShowAlertWindow != AlertWindow.IsOpen)
+        {
+            Configuration.ShowAlertWindow = AlertWindow.IsOpen;
+            Configuration.Save();
+        }
+    }
     private void OpenMainWindow() => MainWindow.Toggle();
     private void OpenConfigWindow() => ConfigWindow.Toggle();
 
+    public void SetAlertWindowVisible(bool visible)
+    {
+        AlertWindow.IsOpen = visible;
+        Configuration.ShowAlertWindow = visible;
+        Configuration.Save();
+    }
+
     public void SetMapMarker(MapLinkPayload map) => GameGui.OpenMapWithMapLink(map);
     public unsafe void OpenDutyFinder(uint key) => AgentContentsFinder.Instance()->OpenRegularDuty(key);
-    public uint GetGrandCompany() => PlayerState.GrandCompany.RowId + 10000;
-    public string GetCurrentGcName() => Utils.ToTitleCaseExtended(Sheets.GrandCompanySheet.GetRow(GetGrandCompany() - 10000).Name);
-    public unsafe int GetRankFromMemory(uint job) => MonsterNoteManager.Instance()->RankData[StaticData.JobInMemory(job)].Rank;
 
-    public unsafe Dictionary<string, MonsterProgress> GetMemoryProgress(uint job, int rank)
+    public uint GetGrandCompany()
     {
-        var currentProgress = new Dictionary<string, MonsterProgress>();
+        var grandCompanyRowId = PlayerState.GrandCompany.RowId;
+        return grandCompanyRowId == 0 ? 10000 : grandCompanyRowId + 10000;
+    }
 
-        var huntingRank = HuntingData.JobRanks[job][rank];
+    public string GetCurrentGcName()
+    {
+        var grandCompany = GetGrandCompany();
+        return grandCompany == 10000
+                   ? string.Empty
+                   : Utils.ToTitleCaseExtended(Sheets.GrandCompanySheet.GetRow(grandCompany - 10000).Name);
+    }
+
+    public unsafe int GetRankFromMemory(uint job)
+    {
+        if (!PlayerState.IsLoaded)
+            return 0;
+
         var monsterNoteManager = MonsterNoteManager.Instance();
+        return monsterNoteManager == null ? 0 : monsterNoteManager->RankData[StaticData.JobInMemory(job)].Rank;
+    }
+
+    public unsafe Dictionary<uint, MonsterProgress> GetMemoryProgress(uint job, int rank)
+    {
+        var currentProgress = new Dictionary<uint, MonsterProgress>();
+
+        if (!PlayerState.IsLoaded)
+            return currentProgress;
+
+        if (!HuntingData.JobRanks.TryGetValue(job, out var ranks) || rank < 0 || rank >= ranks.Count)
+            return currentProgress;
+
+        var huntingRank = ranks[rank];
+        var monsterNoteManager = MonsterNoteManager.Instance();
+        if (monsterNoteManager == null)
+            return currentProgress;
+
         var jobMemory = monsterNoteManager->RankData[StaticData.JobInMemory(job)];
         var progressRank = jobMemory.Rank;
+        var monsters = huntingRank.Tasks.SelectMany(a => a.Monsters);
 
         if (progressRank > rank) // Rank is already finished, all monsters are done
         {
-            foreach (var monster in huntingRank.Tasks.SelectMany(a => a.Monsters))
-                currentProgress.Add(monster.Name, new MonsterProgress(true));
+            foreach (var monster in monsters)
+                currentProgress[monster.Id] = new MonsterProgress(true);
 
+            return currentProgress;
         }
-        else if (progressRank < rank) // Rank not yet reached, kills must be zero
+
+        if (progressRank < rank) // Rank not yet reached, kills must be zero
         {
-            foreach (var monster in huntingRank.Tasks.SelectMany(a => a.Monsters))
-                currentProgress.Add(monster.Name, new MonsterProgress(0));
+            foreach (var monster in monsters)
+                currentProgress[monster.Id] = new MonsterProgress(0);
+
+            return currentProgress;
         }
-        else
+
+        var rankData = jobMemory.RankData.ToArray();
+        for (var taskIndex = 0; taskIndex < huntingRank.Tasks.Count && taskIndex < rankData.Length; taskIndex++)
         {
-            foreach (var (task, progress) in huntingRank.Tasks.Zip(jobMemory.RankData.ToArray()))
+            var task = huntingRank.Tasks[taskIndex];
+            var counts = rankData[taskIndex].Counts;
+            for (var monsterIndex = 0; monsterIndex < task.Monsters.Count; monsterIndex++)
             {
-                foreach (var (monster, idx) in task.Monsters.Select((monster, i) => ( monster, i )))
-                {
-                    var killed = progress.Counts[idx];
-                    currentProgress.Add(monster.Name, killed == monster.Count ? new MonsterProgress(true) : new MonsterProgress(killed));
-                }
+                var monster = task.Monsters[monsterIndex];
+                var killed = monsterIndex < counts.Length ? counts[monsterIndex] : 0;
+                currentProgress[monster.Id] = killed == monster.Count
+                                                  ? new MonsterProgress(true)
+                                                  : new MonsterProgress(killed);
             }
         }
 
@@ -232,8 +319,11 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     // From: https://github.com/SheepGoMeh/HuntBuddy/blob/5a92e0e104839c30eaf398790dee32b793c3c53e/HuntBuddy/Location.cs#L520
-    public static void TeleportToNearestAetheryte(HuntingMonsterLocation location)
+    public void TeleportToNearestAetheryte(HuntingMonsterLocation location)
     {
+        if (location.Map == 0)
+            return;
+
         var map = Sheets.MapSheet.GetRow(location.Map);
         var nearestAetheryteId = Sheets.MapMarkerSheet
                                        .SelectMany(x => x)
@@ -275,24 +365,5 @@ public sealed class Plugin : IDalamudPlugin
     public static string GetMonsterNameLoc(uint id)
     {
         return Evaluator.EvaluateObjStr(ObjectKind.BattleNpc, id);
-    }
-
-    public record BnpcNames(string En, string De, string Fr, string Jp);
-    public static void GetAllMonsterLoc()
-    {
-        var path = Path.Combine(PluginInterface.AssemblyLocation.Directory!.FullName, "bNpcNames.json");
-
-        var dict = new Dictionary<uint, BnpcNames>();
-        foreach (var key in Sheets.BNpcName)
-        {
-            dict[key.RowId] = new BnpcNames(
-                Evaluator.EvaluateObjStr(ObjectKind.BattleNpc, key.RowId),
-                Evaluator.EvaluateObjStr(ObjectKind.BattleNpc, key.RowId, ClientLanguage.German),
-                Evaluator.EvaluateObjStr(ObjectKind.BattleNpc, key.RowId, ClientLanguage.French),
-                Evaluator.EvaluateObjStr(ObjectKind.BattleNpc, key.RowId, ClientLanguage.Japanese)
-            );
-        }
-
-        File.WriteAllText(path, JsonConvert.SerializeObject(dict));
     }
 }

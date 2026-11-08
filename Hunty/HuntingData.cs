@@ -36,9 +36,9 @@ public class HuntingMonster
 
     public List<HuntingMonsterLocation> Locations { get; set; } = [];
 
-    [JsonIgnore] public HuntingMonsterLocation GetLocation => Locations[0]; // game gives up to 3 locations
-    [JsonIgnore] public string GetCoordinates => Locations[0].MapLink.CoordinateString;
-    [JsonIgnore] public bool IsOpenWorld => !Locations[0].IsDuty;
+    [JsonIgnore] public HuntingMonsterLocation? GetLocation => Locations.Count > 0 ? Locations[0] : null; // game gives up to 3 locations
+    [JsonIgnore] public string GetCoordinates => Locations.Count > 0 ? Locations[0].MapLink.CoordinateString : string.Empty;
+    [JsonIgnore] public bool IsOpenWorld => Locations.Count > 0 && !Locations[0].IsDuty;
 }
 
 [Serializable]
@@ -74,6 +74,9 @@ public class HuntingMonsterLocation
 
     public void InitLocation()
     {
+        if (Terri == 0 || Map == 0)
+            return;
+
         var mapSheet = Sheets.TerritoryTypeSheet.GetRow(Terri);
 
         Name = ToTitleCaseExtended(mapSheet.Map.Value.PlaceName.Value.Name);

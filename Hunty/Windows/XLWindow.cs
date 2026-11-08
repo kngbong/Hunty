@@ -19,6 +19,8 @@ public class XLWindow : Window, IDisposable
     private int SelectedArea;
     private string LastArea = string.Empty;
 
+    private readonly Dictionary<(uint Job, int Rank), Dictionary<string, List<HuntingMonster>>> AreaCache = new();
+
     public XLWindow(Plugin plugin) : base("Hunty XL")
     {
         SizeConstraints = new WindowSizeConstraints
@@ -44,7 +46,7 @@ public class XLWindow : Window, IDisposable
             Plugin.Configuration.Save();
 
         ImGui.TextUnformatted(Plugin.CurrentJobName);
-        if (!Plugin.HuntingData.JobRanks.TryGetValue(Plugin.CurrentJob, out _))
+        if (!Plugin.HuntingData.JobRanks.TryGetValue(Plugin.CurrentJob, out var jobRanks) || jobRanks.Count == 0)
         {
             ImGuiHelpers.ScaledDummy(5);
             ImGui.Separator();
@@ -55,27 +57,30 @@ public class XLWindow : Window, IDisposable
         }
 
         var currentRank = Plugin.GetRankFromMemory(Plugin.CurrentJob);
-        if (currentRank >= 5)
+        if (currentRank < 0 || currentRank >= jobRanks.Count)
         {
             ImGuiHelpers.ScaledDummy(5);
             ImGui.Separator();
             ImGuiHelpers.ScaledDummy(5);
+
             Helper.TextColored(ImGuiColors.HealerGreen, Language.ErrorLogDone);
             return;
         }
 
-        var currentAreas = new Dictionary<string, List<HuntingMonster>>();
-        foreach (var m in Plugin.HuntingData.JobRanks[Plugin.CurrentJob][currentRank].Tasks.SelectMany(a => a.Monsters))
+        var currentAreas = GetAreas(Plugin.CurrentJob, currentRank);
+        var areaList = currentAreas.Keys.ToArray();
+        if (areaList.Length == 0)
         {
-            var location = m.GetLocation;
-            if (location.Name == string.Empty)
-                location.InitLocation();
+            ImGuiHelpers.ScaledDummy(5);
+            ImGui.Separator();
+            ImGuiHelpers.ScaledDummy(5);
 
-            currentAreas.GetOrCreate(location.Name).Add(m);
+            Helper.TextColored(ImGuiColors.HealerGreen, Language.ErrorLogDone);
+            return;
         }
 
-        var areaList = currentAreas.Keys.ToArray();
         SelectedArea = areaList.Contains(LastArea) ? Array.IndexOf(areaList, LastArea) : 0;
+        SelectedArea = Math.Clamp(SelectedArea, 0, areaList.Length - 1);
 
         ImGui.Combo("##areaSelector", ref SelectedArea, areaList, areaList.Length);
         Helper.DrawArrows(ref SelectedArea, areaList.Length, 4);
@@ -85,32 +90,23 @@ public class XLWindow : Window, IDisposable
         ImGui.Separator();
         ImGuiHelpers.ScaledDummy(5);
 
+        var selectedAreaName = areaList[SelectedArea];
         foreach (var job in Plugin.JobArray)
         {
+            if (!Plugin.HuntingData.JobRanks.TryGetValue(job, out var ranks) || ranks.Count == 0)
+                continue;
+
             var jobRank = Plugin.GetRankFromMemory(job);
-            if (jobRank >= 5)
+            if (jobRank < 0 || jobRank >= ranks.Count)
                 continue;
 
-            var area = new Dictionary<string, List<HuntingMonster>>();
-            foreach (var m in Plugin.HuntingData.JobRanks[job][jobRank].Tasks.SelectMany(a => a.Monsters))
-            {
-                var location = m.GetLocation;
-                if (location.Name == string.Empty)
-                    location.InitLocation();
-
-                area.GetOrCreate(location.Name).Add(m);
-            }
-
-            if (area.Count == 0)
-                continue;
-
-            if (!area.TryGetValue(areaList[SelectedArea], out var monsters))
+            if (!GetAreas(job, jobRank).TryGetValue(selectedAreaName, out var monsters) || monsters.Count == 0)
                 continue;
 
             Helper.TextColored(ImGuiColors.DalamudViolet, Utils.ToTitleCaseExtended(Sheets.ClassJobSheet.GetRow(job).Name));
 
             var memoryProgress = Plugin.GetMemoryProgress(job, jobRank);
-            Helper.DrawProgressSymbol(monsters.All(x => memoryProgress[x.Name].Done));
+            Helper.DrawProgressSymbol(monsters.All(x => memoryProgress.TryGetValue(x.Id, out var completed) && completed.Done));
 
             ImGuiHelpers.ScaledDummy(5);
             using var table = ImRaii.Table($"##monsterTable{job}", 4);
@@ -124,8 +120,12 @@ public class XLWindow : Window, IDisposable
                 ImGui.TableHeadersRow();
                 foreach (var monster in monsters)
                 {
-                    var monsterProgress = memoryProgress[monster.Name];
+                    var monsterProgress = memoryProgress.TryGetValue(monster.Id, out var progress) ? progress : new MonsterProgress(0);
                     if (Plugin.Configuration.SkipDone && monsterProgress.Done)
+                        continue;
+
+                    var location = monster.GetLocation;
+                    if (location == null)
                         continue;
 
                     ImGui.TableNextColumn();
@@ -151,27 +151,55 @@ public class XLWindow : Window, IDisposable
                         if (Plugin.TeleportConsumer.IsAvailable)
                         {
                             using var pushedFont = ImRaii.PushFont(UiBuilder.IconFont);
-                            if (ImGui.Button($"{FontAwesomeIcon.StreetView.ToIconString()}##{job}{monster.Name}{monster.Icon.ToString()}{monster.Count}"))
+                            if (ImGui.Button($"{FontAwesomeIcon.StreetView.ToIconString()}##{job}{monster.Id}{monster.Icon.ToString()}"))
                             {
-                                Plugin.TeleportToNearestAetheryte(monster.GetLocation);
-                                Plugin.SetMapMarker(monster.GetLocation.MapLink);
+                                Plugin.TeleportToNearestAetheryte(location);
+                                Plugin.SetMapMarker(location.MapLink);
                             }
 
                             ImGui.SameLine();
                         }
 
-                        if (ImGui.Selectable($"{monster.GetLocation.Name} {monster.GetCoordinates}##{job}{monster.Icon.ToString()}"))
-                            Plugin.SetMapMarker(monster.GetLocation.MapLink);
+                        if (ImGui.Selectable($"{location.Name} {location.MapLink.CoordinateString}##{job}{monster.Id}{monster.Icon.ToString()}"))
+                            Plugin.SetMapMarker(location.MapLink);
                     }
                     else
                     {
-                        if (ImGui.Selectable($"{monster.GetLocation.DutyName}##{job}{monster.Icon.ToString()}"))
-                            Plugin.OpenDutyFinder(monster.GetLocation.DutyKey);
+                        if (ImGui.Selectable($"{location.DutyName}##{job}{monster.Id}{monster.Icon.ToString()}"))
+                            Plugin.OpenDutyFinder(location.DutyKey);
                     }
 
                     ImGui.TableNextRow();
                 }
             }
         }
+    }
+
+    private Dictionary<string, List<HuntingMonster>> GetAreas(uint job, int rank)
+    {
+        if (AreaCache.TryGetValue((job, rank), out var cached))
+            return cached;
+
+        var areas = new Dictionary<string, List<HuntingMonster>>();
+        if (Plugin.HuntingData.JobRanks.TryGetValue(job, out var ranks) && rank >= 0 && rank < ranks.Count)
+        {
+            foreach (var monster in ranks[rank].Tasks.SelectMany(a => a.Monsters))
+            {
+                var location = monster.GetLocation;
+                if (location == null)
+                    continue;
+
+                if (location.Name == string.Empty)
+                    location.InitLocation();
+
+                if (string.IsNullOrEmpty(location.Name))
+                    continue;
+
+                areas.GetOrCreate(location.Name).Add(monster);
+            }
+        }
+
+        AreaCache[(job, rank)] = areas;
+        return areas;
     }
 }

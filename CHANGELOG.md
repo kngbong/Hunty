@@ -1,0 +1,40 @@
+# Changelog
+
+All notable changes to this fork are documented here.
+
+## 1.4.0.0
+
+### Added
+
+- New **Hunty Alerts** window: shows how many hunting log entries are still pending in the
+  zone you are currently in, for every class you choose to watch, and how many kills are left.
+  Hovering a class lists the pending monsters with their current progress.
+- New **Alerts** tab in the configuration window to show/hide the alert window and pick the
+  watched classes (`Select all` / `Clear all` shortcuts included).
+- New `/huntyalert` command to toggle the alert window. Its visibility is persisted across
+  restarts.
+
+## 1.3.8.0
+
+### Fixed
+
+- Removed the `bNpcNames.json` file that was written to the plugin directory on every load and was never read.
+- Hunting data is no longer left `null` when `monsters.json` is missing or invalid; the UI now shows a message instead of throwing.
+- Guarded empty and out-of-range rank/area selections in the main, XL and Companion windows.
+- Bounded the task/monster progress reads so mismatches between `monsters.json` and the game memory cannot throw.
+- Progress is now keyed by monster ID instead of by localized name.
+- Fixed Grand Company detection for characters without a Grand Company.
+- Guarded `MonsterNoteManager` access while the player is not logged in.
+- Unsupported UI languages now fall back to the neutral language instead of throwing.
+
+### Changed
+
+- The Companion window now computes progress once per job instead of twice per monster, handles an empty area list, and uses the duty flag of the displayed location.
+- The XL window caches area grouping per job and rank instead of rebuilding it every frame.
+- The Teleport availability check now runs on first access and uses a clearer field name.
+- Added a localized "Nothing to hunt in this area." message (EN/DE/FR/JA/ZH).
+- Updated fork metadata, issue links and version to `1.3.8.0`.
+
+### Added
+
+- GitHub Actions build workflow.

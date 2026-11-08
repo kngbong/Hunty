@@ -5,8 +5,13 @@ namespace Hunty.IPC;
 
 public class TeleportConsumer
 {
+    private const int AvailabilityCheckIntervalMs = 5000;
+
     private bool Available;
-    private long TimeSinceLastCheck;
+    private long NextAvailabilityCheck;
+
+    private ICallGateSubscriber<bool> IsTeleportAvailable = null!;
+    private ICallGateSubscriber<uint, byte, bool> Teleport = null!;
 
     public TeleportConsumer() => Subscribe();
 
@@ -14,14 +19,14 @@ public class TeleportConsumer
     {
         get
         {
-            if (TimeSinceLastCheck + 5000 > Environment.TickCount64)
+            if (NextAvailabilityCheck > Environment.TickCount64)
                 return Available;
+
+            NextAvailabilityCheck = Environment.TickCount64 + AvailabilityCheckIntervalMs;
 
             try
             {
-                TimeSinceLastCheck = Environment.TickCount64;
-
-                IsInitialized.InvokeFunc();
+                IsTeleportAvailable.InvokeFunc();
                 Available = true;
             }
             catch
@@ -33,14 +38,11 @@ public class TeleportConsumer
         }
     }
 
-    private ICallGateSubscriber<bool> IsInitialized = null!;
-    private ICallGateSubscriber<uint, byte, bool> Teleport = null!;
-
     private void Subscribe()
     {
         try
         {
-            IsInitialized = Plugin.PluginInterface.GetIpcSubscriber<bool>("Teleport.ChatMessage");
+            IsTeleportAvailable = Plugin.PluginInterface.GetIpcSubscriber<bool>("Teleport.ChatMessage");
             Teleport = Plugin.PluginInterface.GetIpcSubscriber<uint, byte, bool>("Teleport");
         }
         catch (Exception e)

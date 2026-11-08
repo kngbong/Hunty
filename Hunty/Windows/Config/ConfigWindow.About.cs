@@ -56,7 +56,7 @@ public partial class ConfigWindow
             using (ImRaii.PushColor(ImGuiCol.Button, ImGuiColors.DPSRed))
             {
                 if (ImGui.Button(Language.GithubIssues))
-                    Dalamud.Utility.Util.OpenLink("https://github.com/Infiziert90/Hunty/issues");
+                    Dalamud.Utility.Util.OpenLink("https://github.com/kngbong/Hunty/issues");
             }
 
             ImGui.SameLine();

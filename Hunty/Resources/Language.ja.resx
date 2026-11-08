@@ -59,6 +59,45 @@
   <data name="ErrorLogDone" xml:space="preserve">
         <value>This job is done with the hunting log.</value>
     </data>
+  <data name="ErrorNothingToHunt" xml:space="preserve">
+        <value>このエリアに討伐対象はいません。</value>
+    </data>
+  <data name="AlertTab" xml:space="preserve">
+        <value>アラート</value>
+    </data>
+  <data name="AlertShowWindow" xml:space="preserve">
+        <value>アラートウィンドウを表示</value>
+    </data>
+  <data name="AlertSelectClasses" xml:space="preserve">
+        <value>監視するクラス</value>
+    </data>
+  <data name="AlertSelectAll" xml:space="preserve">
+        <value>すべて選択</value>
+    </data>
+  <data name="AlertClearAll" xml:space="preserve">
+        <value>すべて解除</value>
+    </data>
+  <data name="AlertTableClass" xml:space="preserve">
+        <value>クラス</value>
+    </data>
+  <data name="AlertTableEntries" xml:space="preserve">
+        <value>項目</value>
+    </data>
+  <data name="AlertTableKills" xml:space="preserve">
+        <value>残り討伐数</value>
+    </data>
+  <data name="AlertNoPending" xml:space="preserve">
+        <value>このエリアに未完了の討伐手帳項目はありません。</value>
+    </data>
+  <data name="AlertNoClasses" xml:space="preserve">
+        <value>監視するクラスを1つ以上選択してください。</value>
+    </data>
+  <data name="AlertNotInZone" xml:space="preserve">
+        <value>エリア内にいません。</value>
+    </data>
+  <data name="HelpMessageAlert" xml:space="preserve">
+        <value>討伐手帳アラートウィンドウを切り替えます。</value>
+    </data>
   <data name="About" xml:space="preserve">
         <value>About</value>
     </data>

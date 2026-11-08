@@ -59,6 +59,45 @@
   <data name="ErrorLogDone" xml:space="preserve">
         <value>Ce job a terminé le bestiaire.</value>
     </data>
+  <data name="ErrorNothingToHunt" xml:space="preserve">
+        <value>Rien à chasser dans cette zone.</value>
+    </data>
+  <data name="AlertTab" xml:space="preserve">
+        <value>Alertes</value>
+    </data>
+  <data name="AlertShowWindow" xml:space="preserve">
+        <value>Afficher la fenêtre d'alerte</value>
+    </data>
+  <data name="AlertSelectClasses" xml:space="preserve">
+        <value>Classes à surveiller</value>
+    </data>
+  <data name="AlertSelectAll" xml:space="preserve">
+        <value>Tout sélectionner</value>
+    </data>
+  <data name="AlertClearAll" xml:space="preserve">
+        <value>Tout désélectionner</value>
+    </data>
+  <data name="AlertTableClass" xml:space="preserve">
+        <value>Classe</value>
+    </data>
+  <data name="AlertTableEntries" xml:space="preserve">
+        <value>Entrées</value>
+    </data>
+  <data name="AlertTableKills" xml:space="preserve">
+        <value>Kills restants</value>
+    </data>
+  <data name="AlertNoPending" xml:space="preserve">
+        <value>Aucune entrée du carnet de chasse en attente dans cette zone.</value>
+    </data>
+  <data name="AlertNoClasses" xml:space="preserve">
+        <value>Sélectionnez au moins une classe à surveiller.</value>
+    </data>
+  <data name="AlertNotInZone" xml:space="preserve">
+        <value>Vous n'êtes pas dans une zone.</value>
+    </data>
+  <data name="HelpMessageAlert" xml:space="preserve">
+        <value>Affiche ou masque la fenêtre d'alerte du carnet de chasse.</value>
+    </data>
   <data name="About" xml:space="preserve">
         <value>À propos</value>
     </data>

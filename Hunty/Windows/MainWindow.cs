@@ -46,7 +46,7 @@ public class MainWindow : Window, IDisposable
         var oldClass = SelectedClass;
 
         ImGui.AlignTextToFramePadding();
-        List<HuntingRank> selClass;
+        List<HuntingRank>? selClass = null;
         if (OpenGrandCompany)
         {
             Plugin.HuntingData.JobRanks.TryGetValue(Plugin.CurrentGc, out selClass);
@@ -57,7 +57,8 @@ public class MainWindow : Window, IDisposable
             ImGui.Combo("##classSelector", ref SelectedClass, Jobs, Jobs.Length);
             Helper.DrawArrows(ref SelectedClass, Jobs.Length);
 
-            selClass = Plugin.HuntingData.JobRanks[Plugin.JobArray[SelectedClass]];
+            SelectedClass = Math.Clamp(SelectedClass, 0, Plugin.JobArray.Length - 1);
+            Plugin.HuntingData.JobRanks.TryGetValue(Plugin.JobArray[SelectedClass], out selClass);
         }
         else
         {
@@ -81,26 +82,41 @@ public class MainWindow : Window, IDisposable
             return;
         }
 
+        if (selClass is not { Count: > 0 })
+        {
+            Helper.TextColored(Helper.RedColor, Language.ErrorNoLog);
+            return;
+        }
+
         ImGuiHelpers.ScaledDummy(5);
         ImGui.Separator();
         ImGuiHelpers.ScaledDummy(5);
 
+        SelectedClass = Math.Clamp(SelectedClass, 0, Plugin.JobArray.Length - 1);
+        SelectedRank = Math.Clamp(SelectedRank, 0, selClass.Count - 1);
         var current = !OpenGrandCompany ? Plugin.JobArray[SelectedClass] : Plugin.CurrentGc;
 
-        var rankList = selClass!.Select((_, i) => $"{Language.SelectorRank} {i+1}").ToArray();
+        var rankList = selClass.Select((_, i) => $"{Language.SelectorRank} {i+1}").ToArray();
         ImGui.Combo("##rankSelector", ref SelectedRank, rankList, rankList.Length);
         Helper.DrawArrows(ref SelectedRank, rankList.Length, 2);
         Helper.DrawProgressSymbol(SelectedRank < Plugin.GetRankFromMemory(current));
 
-        FillCurrentAreas(oldRank, oldClass, selClass!);
+        FillCurrentAreas(oldRank, oldClass, selClass);
+
+        if (CurrentAreas.Count == 0)
+        {
+            Helper.TextColored(Helper.RedColor, Language.ErrorLogDone);
+            return;
+        }
 
         var areaList = CurrentAreas.Keys.ToArray();
+        SelectedArea = Math.Clamp(SelectedArea, 0, areaList.Length - 1);
         ImGui.Combo("##areaSelector", ref SelectedArea, areaList, areaList.Length);
         Helper.DrawArrows(ref SelectedArea, areaList.Length, 4);
 
         var monsters = CurrentAreas[areaList[SelectedArea]];
         var memoryProgress = Plugin.GetMemoryProgress(current, SelectedRank);
-        Helper.DrawProgressSymbol(monsters.All(x => memoryProgress[x.Name].Done));
+        Helper.DrawProgressSymbol(monsters.All(x => memoryProgress.TryGetValue(x.Id, out var completed) && completed.Done));
 
         ImGuiHelpers.ScaledDummy(10);
 
@@ -110,11 +126,15 @@ public class MainWindow : Window, IDisposable
             ImGui.TableSetupColumn("##icon", ImGuiTableColumnFlags.WidthFixed, Helper.IconSize.X * ImGuiHelpers.GlobalScale);
             ImGui.TableSetupColumn(Language.TableLabelMonster);
             ImGui.TableSetupColumn(Language.TableLabelDone, ImGuiTableColumnFlags.WidthStretch, 0.4f);
-            ImGui.TableSetupColumn(monsters[0].IsOpenWorld ? Language.TableLabelCoords : Language.TableLabelDungeon, ImGuiTableColumnFlags.WidthStretch, 1.5f);
+            ImGui.TableSetupColumn(monsters.Any(x => x.IsOpenWorld) ? Language.TableLabelCoords : Language.TableLabelDungeon, ImGuiTableColumnFlags.WidthStretch, 1.5f);
 
             ImGui.TableHeadersRow();
             foreach (var monster in monsters)
             {
+                var location = monster.GetLocation;
+                if (location == null)
+                    continue;
+
                 ImGui.TableNextColumn();
                 Helper.DrawIcon(monster.Icon);
 
@@ -122,7 +142,7 @@ public class MainWindow : Window, IDisposable
                 ImGui.TextUnformatted(Plugin.GetMonsterNameLoc(monster.Id));
 
                 ImGui.TableNextColumn();
-                var monsterProgress = memoryProgress[monster.Name];
+                var monsterProgress = memoryProgress.TryGetValue(monster.Id, out var progress) ? progress : new MonsterProgress(0);
                 if (monsterProgress.Done)
                 {
                     using (ImRaii.PushFont(UiBuilder.IconFont))
@@ -139,22 +159,22 @@ public class MainWindow : Window, IDisposable
                     if (Plugin.TeleportConsumer.IsAvailable)
                     {
                         using var pushedFont = ImRaii.PushFont(UiBuilder.IconFont);
-                        if (ImGui.Button($"{FontAwesomeIcon.StreetView.ToIconString()}##{monster.Name}{monster.Icon.ToString()}{monster.Count}"))
+                        if (ImGui.Button($"{FontAwesomeIcon.StreetView.ToIconString()}##{monster.Id}{monster.Icon.ToString()}"))
                         {
-                            Plugin.TeleportToNearestAetheryte(monster.GetLocation);
-                            Plugin.SetMapMarker(monster.GetLocation.MapLink);
+                            Plugin.TeleportToNearestAetheryte(location);
+                            Plugin.SetMapMarker(location.MapLink);
                         }
 
                         ImGui.SameLine();
                     }
 
-                    if (ImGui.Selectable($"{monster.GetLocation.Name} {monster.GetCoordinates}##{monster.Icon.ToString()}"))
-                        Plugin.SetMapMarker(monster.GetLocation.MapLink);
+                    if (ImGui.Selectable($"{location.Name} {location.MapLink.CoordinateString}##{monster.Id}{monster.Icon.ToString()}"))
+                        Plugin.SetMapMarker(location.MapLink);
                 }
                 else
                 {
-                    if (ImGui.Selectable($"{monster.GetLocation.DutyName}##{monster.Icon.ToString()}"))
-                        Plugin.OpenDutyFinder(monster.GetLocation.DutyKey);
+                    if (ImGui.Selectable($"{location.DutyName}##{monster.Id}{monster.Icon.ToString()}"))
+                        Plugin.OpenDutyFinder(location.DutyKey);
                 }
 
                 ImGui.TableNextRow();
@@ -169,7 +189,7 @@ public class MainWindow : Window, IDisposable
         SelectedArea = 0;
 
         if (Plugin.HuntingData.JobRanks.ContainsKey(Plugin.CurrentJob))
-            SelectedClass = Array.IndexOf(Plugin.JobArray, Plugin.CurrentJob);
+            SelectedClass = Math.Max(0, Array.IndexOf(Plugin.JobArray, Plugin.CurrentJob));
 
         CurrentAreas.Clear();
     }
@@ -181,13 +201,20 @@ public class MainWindow : Window, IDisposable
 
         SelectedArea = 0;
         CurrentAreas.Clear();
-        foreach (var m in selClass![SelectedRank].Tasks.SelectMany(a => a.Monsters))
+        foreach (var m in selClass[SelectedRank].Tasks.SelectMany(a => a.Monsters))
         {
-            var location = m.Locations[0];
+            var location = m.GetLocation;
+            if (location == null)
+                continue;
+
             if (location.Name == string.Empty)
                 location.InitLocation();
 
-            CurrentAreas.GetOrCreate(location.IsDuty ? location.DutyName: location.Name).Add(m);
+            var areaName = location.IsDuty ? location.DutyName : location.Name;
+            if (string.IsNullOrEmpty(areaName))
+                continue;
+
+            CurrentAreas.GetOrCreate(areaName).Add(m);
         }
     }
 }

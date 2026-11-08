@@ -28,6 +28,7 @@ public partial class ConfigWindow : Window, IDisposable
         if (!tabBar.Success)
             return;
 
+        Alerts();
         About();
     }
 }

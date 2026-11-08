@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Interface;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
@@ -50,21 +51,29 @@ public class CompanionWindow : Window, IDisposable
     public override void Draw()
     {
         var territories = new Dictionary<string, uint>();
-        var currentAreas = new Dictionary<string, List<(uint, HuntingMonster)>>();
+        var currentAreas = new Dictionary<string, List<(uint Job, HuntingMonster Monster, MonsterProgress Progress)>>();
         foreach (var job in Plugin.JobArray.Prepend(Plugin.CurrentGc))
         {
             // No GC, skip this build step
             if (job == 10000)
                 continue;
 
-            var jobRank = Plugin.GetRankFromMemory(job);
-            if (jobRank >= (job > 10000 ? 3 : 5))
+            if (!Plugin.HuntingData.JobRanks.TryGetValue(job, out var ranks) || ranks.Count == 0)
                 continue;
 
-            var jobTasks = Plugin.HuntingData.JobRanks[job][jobRank].Tasks;
-            foreach (var m in jobTasks.SelectMany(a => a.Monsters))
+            var jobRank = Plugin.GetRankFromMemory(job);
+            if (jobRank < 0 || jobRank >= ranks.Count)
+                continue;
+
+            var maxRank = job > 10000 ? 3 : 5;
+            if (jobRank >= maxRank)
+                continue;
+
+            var jobProgress = Plugin.GetMemoryProgress(job, jobRank);
+            foreach (var m in ranks[jobRank].Tasks.SelectMany(a => a.Monsters))
             {
-                if (Plugin.GetMemoryProgress(job, Plugin.GetRankFromMemory(job))[m.Name].Done)
+                var progress = jobProgress.TryGetValue(m.Id, out var monsterProgress) ? monsterProgress : new MonsterProgress(0);
+                if (progress.Done)
                     continue;
 
                 foreach (var location in m.Locations)
@@ -72,28 +81,38 @@ public class CompanionWindow : Window, IDisposable
                     if (location.Name == string.Empty)
                         location.InitLocation();
 
-                    currentAreas.GetOrCreate(location.Name).Add((job, m));
+                    if (string.IsNullOrEmpty(location.Name))
+                        continue;
+
+                    currentAreas.GetOrCreate(location.Name).Add((job, m, progress));
                     territories.TryAdd(location.Name, location.Terri);
                 }
             }
         }
 
         var areaList = currentAreas.Keys.OrderBy(name => territories[name]).ToArray();
+        if (areaList.Length == 0)
+        {
+            Helper.TextColored(ImGuiColors.HealerGreen, Language.ErrorNothingToHunt);
+            return;
+        }
 
         var areaSelected = false;
         if (LastTerritory != Plugin.ClientState.TerritoryType)
         {
             LastTerritory = Plugin.ClientState.TerritoryType;
             var territoryName = territories.FirstOrDefault(x => x.Value == Plugin.ClientState.TerritoryType).Key;
-            if (territoryName != null)
+            if (!string.IsNullOrEmpty(territoryName))
             {
                 areaSelected = true;
                 SelectedArea = Array.IndexOf(areaList, territoryName);
             }
         }
 
-        if (!areaSelected)
+        if (!areaSelected || SelectedArea < 0 || SelectedArea >= areaList.Length)
             SelectedArea = areaList.Contains(LastArea) ? Array.IndexOf(areaList, LastArea) : 0;
+
+        SelectedArea = Math.Clamp(SelectedArea, 0, areaList.Length - 1);
 
         float arrowButtonWidth;
         using (ImRaii.PushFont(UiBuilder.IconFont))
@@ -115,14 +134,13 @@ public class CompanionWindow : Window, IDisposable
             ImGui.TableSetupColumn(Language.TableLabelCoords, ImGuiTableColumnFlags.None, 1.5f);
 
             ImGui.TableHeadersRow();
-            foreach (var (job, monster) in currentAreas[LastArea].OrderBy(a => a.Item2.Name))
+            foreach (var (job, monster, monsterProgress) in currentAreas[LastArea].OrderBy(a => a.Monster.Name))
             {
                 var index = monster.Locations.FindIndex(l => l.Name == LastArea);
                 if (index < 0)
                     continue;
 
                 var monsterLocation = monster.Locations[index];
-                var monsterProgress = Plugin.GetMemoryProgress(job, Plugin.GetRankFromMemory(job))[monster.Name];
                 if (monsterProgress.Done)
                     continue;
 
@@ -133,21 +151,25 @@ public class CompanionWindow : Window, IDisposable
                 ImGui.TextUnformatted(Plugin.GetMonsterNameLoc(monster.Id));
 
                 ImGui.TableNextColumn();
-                Helper.DrawIcon(RequirementIcons[job], 0.75f);
-                if (ImGui.IsItemHovered())
-                    Helper.Tooltip(Utils.ToTitleCaseExtended(job > 10000 ? Plugin.CurrentGcName : Sheets.ClassJobSheet.GetRow(job).Name));
+                if (RequirementIcons.TryGetValue(job, out var requirementIcon))
+                {
+                    Helper.DrawIcon(requirementIcon, 0.75f);
+                    if (ImGui.IsItemHovered())
+                        Helper.Tooltip(Utils.ToTitleCaseExtended(job > 10000 ? Plugin.CurrentGcName : Sheets.ClassJobSheet.GetRow(job).Name));
 
-                ImGui.SameLine();
+                    ImGui.SameLine();
+                }
+
                 ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted($"{monsterProgress.Killed} / {monster.Count.ToString()}");
 
                 ImGui.TableNextColumn();
-                if (monster.IsOpenWorld)
+                if (!monsterLocation.IsDuty)
                 {
                     if (Plugin.TeleportConsumer.IsAvailable)
                     {
                         using var pushedFont = ImRaii.PushFont(UiBuilder.IconFont);
-                        if (ImGui.Button($"{FontAwesomeIcon.StreetView.ToIconString()}##{job}{monster.Name}{monster.Icon.ToString()}{monster.Count}"))
+                        if (ImGui.Button($"{FontAwesomeIcon.StreetView.ToIconString()}##{job}{monster.Id}{monster.Icon.ToString()}"))
                         {
                             Plugin.TeleportToNearestAetheryte(monsterLocation);
                             Plugin.SetMapMarker(monsterLocation.MapLink);
@@ -156,12 +178,12 @@ public class CompanionWindow : Window, IDisposable
                         ImGui.SameLine();
                     }
 
-                    if (ImGui.Selectable($"{monsterLocation.Name} {monsterLocation.MapLink.CoordinateString}##{job}{monster.Icon.ToString()}"))
+                    if (ImGui.Selectable($"{monsterLocation.Name} {monsterLocation.MapLink.CoordinateString}##{job}{monster.Id}{monster.Icon.ToString()}"))
                         Plugin.SetMapMarker(monsterLocation.MapLink);
                 }
                 else
                 {
-                    if (ImGui.Selectable($"{monsterLocation.DutyName}##{job}{monster.Icon.ToString()}"))
+                    if (ImGui.Selectable($"{monsterLocation.DutyName}##{job}{monster.Id}{monster.Icon.ToString()}"))
                         Plugin.OpenDutyFinder(monsterLocation.DutyKey);
                 }
 

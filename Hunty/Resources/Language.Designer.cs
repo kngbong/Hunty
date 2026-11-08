@@ -60,6 +60,105 @@ namespace Hunty.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Alerts.
+        /// </summary>
+        internal static string AlertTab {
+            get {
+                return ResourceManager.GetString("AlertTab", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Show alert window.
+        /// </summary>
+        internal static string AlertShowWindow {
+            get {
+                return ResourceManager.GetString("AlertShowWindow", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Classes to watch.
+        /// </summary>
+        internal static string AlertSelectClasses {
+            get {
+                return ResourceManager.GetString("AlertSelectClasses", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Select all.
+        /// </summary>
+        internal static string AlertSelectAll {
+            get {
+                return ResourceManager.GetString("AlertSelectAll", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Clear all.
+        /// </summary>
+        internal static string AlertClearAll {
+            get {
+                return ResourceManager.GetString("AlertClearAll", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Class.
+        /// </summary>
+        internal static string AlertTableClass {
+            get {
+                return ResourceManager.GetString("AlertTableClass", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Entries.
+        /// </summary>
+        internal static string AlertTableEntries {
+            get {
+                return ResourceManager.GetString("AlertTableEntries", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Kills left.
+        /// </summary>
+        internal static string AlertTableKills {
+            get {
+                return ResourceManager.GetString("AlertTableKills", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No pending hunting log entries in this area..
+        /// </summary>
+        internal static string AlertNoPending {
+            get {
+                return ResourceManager.GetString("AlertNoPending", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Select at least one class to watch..
+        /// </summary>
+        internal static string AlertNoClasses {
+            get {
+                return ResourceManager.GetString("AlertNoClasses", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Not in a zone..
+        /// </summary>
+        internal static string AlertNotInZone {
+            get {
+                return ResourceManager.GetString("AlertNotInZone", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to About.
         /// </summary>
         internal static string About {
@@ -123,6 +222,15 @@ namespace Hunty.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Nothing to hunt in this area..
+        /// </summary>
+        internal static string ErrorNothingToHunt {
+            get {
+                return ResourceManager.GetString("ErrorNothingToHunt", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to This character does not have a Grand Company..
         /// </summary>
         internal static string ErrorNoGrandCompany {
@@ -155,6 +263,15 @@ namespace Hunty.Resources {
         internal static string HelpMessage {
             get {
                 return ResourceManager.GetString("HelpMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Toggles the hunting log alert window..
+        /// </summary>
+        internal static string HelpMessageAlert {
+            get {
+                return ResourceManager.GetString("HelpMessageAlert", resourceCulture);
             }
         }
         
