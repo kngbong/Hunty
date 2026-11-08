@@ -20,6 +20,7 @@ public class MainWindow : Window, IDisposable
     private int SelectedArea;
 
     private bool OpenGrandCompany;
+    private uint? ForcedJob;
 
     private static readonly string[] Jobs = new string[9];
     private readonly Dictionary<string, List<HuntingMonster>> CurrentAreas = new();
@@ -40,6 +41,33 @@ public class MainWindow : Window, IDisposable
 
     public void Dispose() { }
 
+    /// <summary>The class currently shown in the window.</summary>
+    public uint DisplayedJob => ForcedJob ?? (OpenGrandCompany ? Plugin.CurrentGc : Plugin.CurrentJob);
+
+    /// <summary>
+    /// Opens the window for the given class, or closes it when that class is already shown.
+    /// </summary>
+    public void ToggleForJob(uint job)
+    {
+        if (IsOpen && DisplayedJob == job)
+        {
+            IsOpen = false;
+            return;
+        }
+
+        ForcedJob = job;
+        OpenGrandCompany = false;
+        SelectedClass = Math.Max(0, Array.IndexOf(Plugin.JobArray, job));
+        SelectedRank = 0;
+        SelectedArea = 0;
+        CurrentAreas.Clear();
+
+        if (Plugin.HuntingData.JobRanks.TryGetValue(job, out var ranks) && ranks.Count > 0)
+            SelectedRank = Math.Clamp(Plugin.GetRankFromMemory(job), 0, ranks.Count - 1);
+
+        IsOpen = true;
+    }
+
     public override void Draw()
     {
         var oldRank = SelectedRank;
@@ -51,6 +79,11 @@ public class MainWindow : Window, IDisposable
         {
             Plugin.HuntingData.JobRanks.TryGetValue(Plugin.CurrentGc, out selClass);
             ImGui.TextUnformatted(Plugin.CurrentGcName);
+        }
+        else if (ForcedJob is { } forcedJob)
+        {
+            Plugin.HuntingData.JobRanks.TryGetValue(forcedJob, out selClass);
+            ImGui.TextUnformatted(Utils.ToTitleCaseExtended(Sheets.ClassJobSheet.GetRow(forcedJob).Name));
         }
         else if (!Plugin.HuntingData.JobRanks.TryGetValue(Plugin.CurrentJob, out selClass))
         {
@@ -94,7 +127,7 @@ public class MainWindow : Window, IDisposable
 
         SelectedClass = Math.Clamp(SelectedClass, 0, Plugin.JobArray.Length - 1);
         SelectedRank = Math.Clamp(SelectedRank, 0, selClass.Count - 1);
-        var current = !OpenGrandCompany ? Plugin.JobArray[SelectedClass] : Plugin.CurrentGc;
+        var current = ForcedJob ?? (!OpenGrandCompany ? Plugin.JobArray[SelectedClass] : Plugin.CurrentGc);
 
         var rankList = selClass.Select((_, i) => $"{Language.SelectorRank} {i+1}").ToArray();
         ImGui.Combo("##rankSelector", ref SelectedRank, rankList, rankList.Length);
@@ -187,6 +220,7 @@ public class MainWindow : Window, IDisposable
         SelectedClass = 0;
         SelectedRank = 0;
         SelectedArea = 0;
+        ForcedJob = null;
 
         if (Plugin.HuntingData.JobRanks.ContainsKey(Plugin.CurrentJob))
             SelectedClass = Math.Max(0, Array.IndexOf(Plugin.JobArray, Plugin.CurrentJob));

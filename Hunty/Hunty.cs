@@ -220,6 +220,8 @@ public sealed class Plugin : IDalamudPlugin
         MainWindow.Defaults();
     }
 
+    public void ToggleHuntyForJob(uint job) => MainWindow.ToggleForJob(job);
+
     private void OnCommand(string command, string args) => MainWindow.Toggle();
     private void OnXLCommand(string command, string args) => XLWindow.Toggle();
     private void OnCompanionCommand(string command, string args) => CompanionWindow.Toggle();

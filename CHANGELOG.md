@@ -2,6 +2,17 @@
 
 All notable changes to this fork are documented here.
 
+## 1.4.2.0
+
+### Added
+
+- Clicking the **Entries** value in the **Hunty Alerts** window now opens the Hunty window for
+  that class. Clicking the same value again closes the window.
+
+### Changed
+
+- Removed the hint text from the alert window so the window can stay smaller.
+
 ## 1.4.1.2
 
 ### Fixed

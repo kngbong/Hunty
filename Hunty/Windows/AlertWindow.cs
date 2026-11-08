@@ -47,10 +47,10 @@ public class AlertWindow : Window, IDisposable
 
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(240, 120),
+            MinimumSize = new Vector2(220, 100),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
         };
-        Size = new Vector2(280, 190);
+        Size = new Vector2(260, 145);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
@@ -91,11 +91,6 @@ public class AlertWindow : Window, IDisposable
             return;
         }
 
-        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey))
-            ImGui.TextWrapped(Language.AlertMapHint);
-
-        ImGui.Separator();
-
         using var table = ImRaii.Table("##alertTable", 2);
         if (table.Success)
         {
@@ -128,7 +123,12 @@ public class AlertWindow : Window, IDisposable
                 ShowTooltip(alert);
 
                 ImGui.TableNextColumn();
-                ImGui.TextColored(ImGuiColors.DalamudOrange, alert.Pending.Count.ToString());
+                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudOrange))
+                {
+                    if (ImGui.Selectable($"{alert.Pending.Count}##alertEntries{alert.Job}", false))
+                        Plugin.ToggleHuntyForJob(alert.Job);
+                }
+
                 ShowTooltip(alert);
             }
         }

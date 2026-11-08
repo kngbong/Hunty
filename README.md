@@ -66,6 +66,8 @@ Clicking a class name in the alert window places a red flag on every known spawn
 class's pending monsters in the current zone. The flags refresh automatically as entries are
 completed, and clicking the class name again removes them.
 
+Clicking the **Entries** value opens the Hunty window for that class; clicking it again closes it.
+
 ### Building from source
 
 ```powershell
