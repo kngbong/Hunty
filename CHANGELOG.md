@@ -2,6 +2,14 @@
 
 All notable changes to this fork are documented here.
 
+## 1.4.1.2
+
+### Fixed
+
+- Republished the plugin so the custom repository serves the download from GitHub's raw
+  content host instead of the release download gateway, which was intermittently returning
+  `504` and making Dalamud report a failed download.
+
 ## 1.4.1.1
 
 ### Fixed
