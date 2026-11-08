@@ -15,6 +15,7 @@ Let's go hunt together, finally finishing that old log of yours~
 + Automatic selection based on current job
 + Tracks all of the progress for you
 + Alert window with pending entries in your current zone for the classes you choose
++ Click a class in the alert window to flag every remaining spawn point on the map
 + Localizations for EN, DE, FR, JP and ZH  
 
 ## Guide Book  
@@ -60,6 +61,10 @@ It is installed as **Hunty (fork)** with the internal name `HuntyFork`.
 
 The alert window can also be shown/hidden and configured (which classes to watch) from the
 plugin configuration window, **Alerts** tab.
+
+Clicking a class name in the alert window places a red flag on every known spawn point of that
+class's pending monsters in the current zone. The flags refresh automatically as entries are
+completed, and clicking the class name again removes them.
 
 ### Building from source
 

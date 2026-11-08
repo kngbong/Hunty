@@ -91,12 +91,16 @@ public class AlertWindow : Window, IDisposable
             return;
         }
 
-        using var table = ImRaii.Table("##alertTable", 3);
+        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey))
+            ImGui.TextWrapped(Language.AlertMapHint);
+
+        ImGui.Separator();
+
+        using var table = ImRaii.Table("##alertTable", 2);
         if (table.Success)
         {
             ImGui.TableSetupColumn(Language.AlertTableClass);
             ImGui.TableSetupColumn(Language.AlertTableEntries, ImGuiTableColumnFlags.WidthFixed, 45f * ImGuiHelpers.GlobalScale);
-            ImGui.TableSetupColumn(Language.AlertTableKills, ImGuiTableColumnFlags.WidthFixed, 55f * ImGuiHelpers.GlobalScale);
             ImGui.TableHeadersRow();
 
             foreach (var alert in Alerts)
@@ -104,6 +108,10 @@ public class AlertWindow : Window, IDisposable
                 ImGui.TableNextRow();
 
                 ImGui.TableNextColumn();
+                var tracked = Plugin.MapMarkers.IsTracked(alert.Job);
+                if (tracked)
+                    ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudOrange);
+
                 if (JobIcons.TryGetValue(alert.Job, out var icon))
                 {
                     Helper.DrawIcon(icon, 0.5f);
@@ -111,15 +119,16 @@ public class AlertWindow : Window, IDisposable
                 }
 
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted(alert.Name);
+                if (ImGui.Selectable($"{alert.Name}##alertJob{alert.Job}", false))
+                    Plugin.MapMarkers.Toggle(alert.Job);
+
+                if (tracked)
+                    ImGui.PopStyleColor();
+
                 ShowTooltip(alert);
 
                 ImGui.TableNextColumn();
                 ImGui.TextColored(ImGuiColors.DalamudOrange, alert.Pending.Count.ToString());
-                ShowTooltip(alert);
-
-                ImGui.TableNextColumn();
-                ImGui.TextUnformatted(alert.RemainingKills.ToString());
                 ShowTooltip(alert);
             }
         }
@@ -157,27 +166,7 @@ public class AlertWindow : Window, IDisposable
 
         foreach (var job in Plugin.JobArray.Where(jobs.Contains))
         {
-            if (!Plugin.HuntingData.JobRanks.TryGetValue(job, out var ranks) || ranks.Count == 0)
-                continue;
-
-            var rank = Plugin.GetRankFromMemory(job);
-            if (rank < 0 || rank >= ranks.Count)
-                continue;
-
-            var progress = Plugin.GetMemoryProgress(job, rank);
-            var pending = new List<PendingEntry>();
-            foreach (var monster in ranks[rank].Tasks.SelectMany(task => task.Monsters))
-            {
-                if (!monster.Locations.Any(location => location.Terri == territory || location.Zone == territory))
-                    continue;
-
-                var monsterProgress = progress.TryGetValue(monster.Id, out var current) ? current : new MonsterProgress(0);
-                if (monsterProgress.Done)
-                    continue;
-
-                pending.Add(new PendingEntry(monster, monsterProgress));
-            }
-
+            var pending = Plugin.GetPendingMonsters(job, territory);
             if (pending.Count == 0)
                 continue;
 
@@ -185,8 +174,7 @@ public class AlertWindow : Window, IDisposable
                 new JobAlert(
                     job,
                     Utils.ToTitleCaseExtended(Sheets.ClassJobSheet.GetRow(job).Name),
-                    pending,
-                    pending.Sum(p => Math.Max(0, p.Monster.Count - p.Progress.Killed))));
+                    pending));
         }
     }
 
@@ -214,6 +202,5 @@ public class AlertWindow : Window, IDisposable
         return placeName.IsEmpty ? string.Empty : Utils.ToTitleCaseExtended(placeName);
     }
 
-    private sealed record JobAlert(uint Job, string Name, List<PendingEntry> Pending, int RemainingKills);
-    private sealed record PendingEntry(HuntingMonster Monster, MonsterProgress Progress);
+    private sealed record JobAlert(uint Job, string Name, List<PendingMonster> Pending);
 }

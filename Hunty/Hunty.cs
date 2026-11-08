@@ -37,6 +37,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] public static IPluginLog Log { get; set; } = null!;
     [PluginService] public static ITextureProvider Texture { get; set; } = null!;
     [PluginService] public static ISeStringEvaluator Evaluator { get; set; } = null!;
+    [PluginService] public static IGameInteropProvider Interop { get; set; } = null!;
 
     private const string CommandName = "/hunty";
     private const string CommandXL = "/huntyxl";
@@ -53,6 +54,7 @@ public sealed class Plugin : IDalamudPlugin
     private AlertWindow AlertWindow;
 
     public readonly HuntingData HuntingData;
+    public HuntingMapMarkers MapMarkers { get; }
     private uint CurrentJobId;
     private ClassJob CurrentJobParent;
 
@@ -137,6 +139,8 @@ public sealed class Plugin : IDalamudPlugin
             Log.Error(ex, "There was a problem building the HuntingData.");
         }
 
+        MapMarkers = new HuntingMapMarkers(this);
+
         Framework.Update += CheckJobChange;
         ClientState.Login += OnLogin;
     }
@@ -148,6 +152,8 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenMainUi -= OpenMainWindow;
         PluginInterface.UiBuilder.OpenConfigUi -= OpenConfigWindow;
         PluginInterface.LanguageChanged -= LanguageChanged;
+
+        MapMarkers.Dispose();
 
         WindowSystem.RemoveAllWindows();
         ConfigWindow.Dispose();
@@ -316,6 +322,37 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         return currentProgress;
+    }
+
+    /// <summary>
+    /// Returns the monsters of the class's active rank that are still pending in the given territory.
+    /// A monster counts as present when it spawns in the open world territory or in the duty zone.
+    /// </summary>
+    public List<PendingMonster> GetPendingMonsters(uint job, uint territory)
+    {
+        var pending = new List<PendingMonster>();
+
+        if (territory == 0 || !HuntingData.JobRanks.TryGetValue(job, out var ranks) || ranks.Count == 0)
+            return pending;
+
+        var rank = GetRankFromMemory(job);
+        if (rank < 0 || rank >= ranks.Count)
+            return pending;
+
+        var progress = GetMemoryProgress(job, rank);
+        foreach (var monster in ranks[rank].Tasks.SelectMany(task => task.Monsters))
+        {
+            if (!monster.Locations.Any(location => location.Terri == territory || location.Zone == territory))
+                continue;
+
+            var monsterProgress = progress.TryGetValue(monster.Id, out var current) ? current : new MonsterProgress(0);
+            if (monsterProgress.Done)
+                continue;
+
+            pending.Add(new PendingMonster(monster, monsterProgress));
+        }
+
+        return pending;
     }
 
     // From: https://github.com/SheepGoMeh/HuntBuddy/blob/5a92e0e104839c30eaf398790dee32b793c3c53e/HuntBuddy/Location.cs#L520

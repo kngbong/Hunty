@@ -123,11 +123,11 @@ namespace Hunty.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Kills left.
+        ///   Looks up a localized string similar to Click a class name to flag the remaining monsters on the map..
         /// </summary>
-        internal static string AlertTableKills {
+        internal static string AlertMapHint {
             get {
-                return ResourceManager.GetString("AlertTableKills", resourceCulture);
+                return ResourceManager.GetString("AlertMapHint", resourceCulture);
             }
         }
         

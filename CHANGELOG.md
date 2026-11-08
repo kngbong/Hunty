@@ -2,6 +2,20 @@
 
 All notable changes to this fork are documented here.
 
+## 1.4.1.0
+
+### Added
+
+- Clicking a class name in the **Hunty Alerts** window now places a red flag on every known
+  spawn point of that class's still-pending hunting log monsters in the current zone.
+- Map flags refresh automatically when an entry is completed, so only the remaining spawn
+  points stay marked. Clicking the class name again removes its flags.
+
+### Changed
+
+- Removed the **Kills left** column from the alert window. Pending kill counts are still shown
+  in the class tooltip.
+
 ## 1.4.0.0
 
 ### Added

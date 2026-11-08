@@ -84,8 +84,8 @@
     <data name="AlertTableEntries" xml:space="preserve">
         <value>Entries</value>
     </data>
-    <data name="AlertTableKills" xml:space="preserve">
-        <value>Kills left</value>
+    <data name="AlertMapHint" xml:space="preserve">
+        <value>Click a class name to flag the remaining monsters on the map.</value>
     </data>
     <data name="AlertNoPending" xml:space="preserve">
         <value>No pending hunting log entries in this area.</value>

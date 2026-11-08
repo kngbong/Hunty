@@ -83,8 +83,8 @@
   <data name="AlertTableEntries" xml:space="preserve">
         <value>Entrées</value>
     </data>
-  <data name="AlertTableKills" xml:space="preserve">
-        <value>Kills restants</value>
+  <data name="AlertMapHint" xml:space="preserve">
+        <value>Cliquez sur le nom d'une classe pour marquer les monstres restants sur la carte.</value>
     </data>
   <data name="AlertNoPending" xml:space="preserve">
         <value>Aucune entrée du carnet de chasse en attente dans cette zone.</value>

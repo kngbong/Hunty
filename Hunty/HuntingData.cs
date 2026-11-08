@@ -106,3 +106,6 @@ public struct MonsterProgress
     public MonsterProgress(int killed) => Killed = killed;
     public MonsterProgress(bool done) => Done = done;
 }
+
+/// <summary>A hunting log monster that still has to be killed for the currently active rank.</summary>
+public readonly record struct PendingMonster(HuntingMonster Monster, MonsterProgress Progress);

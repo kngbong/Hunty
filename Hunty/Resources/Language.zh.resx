@@ -83,8 +83,8 @@
   <data name="AlertTableEntries" xml:space="preserve">
         <value>条目</value>
     </data>
-  <data name="AlertTableKills" xml:space="preserve">
-        <value>剩余击杀</value>
+  <data name="AlertMapHint" xml:space="preserve">
+        <value>点击职业名称即可在地图上标记剩余怪物。</value>
     </data>
   <data name="AlertNoPending" xml:space="preserve">
         <value>此区域没有未完成的讨伐手册条目。</value>
