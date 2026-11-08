@@ -85,12 +85,12 @@ public sealed unsafe class HuntingMapMarkers : IDisposable
         MiniMapMarkerHook = null;
 
         // Remove our markers and rebuild the vanilla ones if the map is currently visible.
-        var agentMap = AgentMap.Instance();
-        if (agentMap == null || Plugin.GameGui.GetAddonByName("AreaMap", 1).IsNull)
-            return;
-
         try
         {
+            var agentMap = AgentMap.Instance();
+            if (agentMap == null || Plugin.GameGui.GetAddonByName("AreaMap", 1).IsNull)
+                return;
+
             agentMap->ResetMapMarkers();
             agentMap->ResetMiniMapMarkers();
             agentMap->CreateMapMarkers(false);
